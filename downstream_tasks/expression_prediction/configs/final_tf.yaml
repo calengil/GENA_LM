@@ -1,0 +1,143 @@
+TASK_NAME: expression/final_tf-borzoi-np4
+
+HOME_PATH: ${oc.env:GENALM_HOME}
+
+MODEL_PATH_ROOT: ${HOME_PATH}/runs/${TASK_NAME}
+
+
+args_params:
+
+  _target_: builtins.dict
+  init_checkpoint: "${HOME_PATH}/models/all_datasets_2/pytorch_model.bin"
+  resume:
+
+  model_cfg: "./data/configs/L12-H768-A12-V32k-preln.json"
+
+  model_cls: "downstream_tasks.expression_prediction.expression_model_final_tf:ExpressionCounts"
+
+  model_path: ${MODEL_PATH_ROOT}
+
+  clip_grad_norm: 1
+
+  input_seq_len: 1024
+
+  optimizer: "AdamW"
+
+  weight_decay: 1e-4
+
+  seed: 45
+
+  num_warmup_steps: 1000
+
+  log_interval: 50
+
+  valid_interval: 50
+
+  save_best: True
+
+  save_interval: 2500
+
+  optimize_metric: "pearson_corr_cells_all_borzoi_human"
+
+  optimize_mode: "max"
+
+  data_n_workers: 7
+
+  lr: 1e-4
+
+  lr_scheduler: "constant_with_warmup"
+
+  reset_lr: True
+
+  reset_optimizer: True
+
+  reset_iteration: True
+
+  early_stopping_patience: 500000
+
+  iters: 350000
+
+  gen_tokenizer: "AIRI-Institute/gena-lm-bert-base-t2t"
+
+  # tokenizer of the tf panel encoder (lies in the same folder as the tf model)
+  tf_tokenizer: "${HOME_PATH}/models/moderngena-tf-bins50"
+
+selected_targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/marker_genes.txt"
+
+model_kwargs:
+  _target_: builtins.dict
+  hf: True
+  hf_model_name: "AIRI-Institute/moderngena-large" # "${HOME_PATH}/models/all_datasets_2"
+  hf_model_name_decoder: "${HOME_PATH}/models/decoder" #dp0.1"
+  tf_model_path: "${HOME_PATH}/models/moderngena-tf-bins50"
+  # DNA encoder freezing:
+  #   null  - the whole encoder is trainable
+  #   0     - every layer frozen
+  #   k     - only the last k layers (+ final norm) are trainable
+  bert_trainable_layers: 2
+  # train the token embeddings of the DNA encoder (ignored when bert_trainable_layers is null)
+  bert_train_embeddings: false
+
+  loss_fct:
+    _target_: torch.nn.MSELoss
+    reduction: 'none'
+
+  activation:
+    _target_: torch.nn.Identity
+
+  config:
+    _target_: builtins.dict
+
+  weight: 8
+
+# shared dataset parameters
+shared_dataset_params:
+  n_keys: 8
+  gen_tokenizer: ${args_params.gen_tokenizer}
+  gen_max_seq_len: ${args_params.input_seq_len}
+  tf_tokenizer: ${args_params.tf_tokenizer}
+  # one gene id per line: these genes are always [UNK] in the tf panel and are never targets
+  unk_genes_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/marker_genes.txt"
+  loglevel:
+    "_target_": "logging.getLevelName"
+    "level": "DEBUG"
+  seed: "${args_params.seed}"
+
+# the tf panel holds every gene of the profiles; [UNK]-list genes are dropped from targets in code
+train_dataset_human:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.train.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.train.reverse.csv"
+  targets_path: "${HOME_PATH}/data/expr_dataset/splits/train_file_mappings.csv"
+  genome: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    pseudocount: 1
+
+#valid
+valid_dataset_human:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.valid.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.valid.reverse.csv"
+  targets_path: "${HOME_PATH}/data/expr_dataset/splits/valid_file_mappings.csv"
+  genome: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    pseudocount: 1
+
+#test: evaluated every time valid is evaluated
+test_dataset_human:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.test.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.test.reverse.csv"
+  targets_path: "${HOME_PATH}/data/expr_dataset/splits/test_file_mappings.csv"
+  genome: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    pseudocount: 1
