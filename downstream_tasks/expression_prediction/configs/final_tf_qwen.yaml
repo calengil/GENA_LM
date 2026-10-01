@@ -1,4 +1,4 @@
-TASK_NAME: expression/final_tf-borzoi-all_genes
+TASK_NAME: expression/final_tf-borzoi-all_genes-qwen_v
 
 HOME_PATH: ${oc.env:GENALM_HOME}
 
@@ -13,7 +13,7 @@ args_params:
 
   model_cfg: "./data/configs/L12-H768-A12-V32k-preln.json"
 
-  model_cls: "downstream_tasks.expression_prediction.expression_model_final_tf:ExpressionCounts"
+  model_cls: "downstream_tasks.expression_prediction.expression_model_final_tf_qwen:ExpressionCounts"
 
   model_path: ${MODEL_PATH_ROOT}
 
@@ -64,12 +64,21 @@ args_params:
 
 selected_targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/marker_genes.txt"
 
+# offline step (compute_qwen_mean_vector.py, run by the launcher when model_kwargs.qwen_mean_path is missing):
+# the old Qwen part (desc_model -> last token -> desc_proj -> desc_ln, weights from args_params.init_checkpoint)
+# is run over the descriptions of all train/valid/test tracks and the vectors are averaged
+qwen_mean_params:
+  desc_model_name: "Qwen/Qwen3-Embedding-0.6B"
+  text_max_seq_len: 510
+
 model_kwargs:
   _target_: builtins.dict
   hf: True
   hf_model_name: "AIRI-Institute/moderngena-large"
   hf_model_name_decoder: "${HOME_PATH}/models/decoder" #dp0.1"
   tf_model_path: "${HOME_PATH}/models/moderngena-tf-bins50"
+  # mean Qwen condition vector, added to the tf [CLS] state before tf_ln (fixed, not trained)
+  qwen_mean_path: "${HOME_PATH}/models/qwen_mean_vector.pt"
   # DNA encoder freezing:
   #   null  - the whole encoder is trainable
   #   0     - every layer frozen
@@ -105,7 +114,7 @@ shared_dataset_params:
 
 # the tf panel holds every gene of the profiles; [UNK]-list genes are dropped from targets in code
 train_dataset_human:
-  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.ExpressionDataset
   forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.forward.csv"
   reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.reverse.csv"
   targets_path: "${HOME_PATH}/data/expr_dataset/splits/train_file_mappings.csv"
@@ -113,12 +122,12 @@ train_dataset_human:
   tpm: csv
   num_before: 512
   transform_targets_tpm:
-    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.logtransform
     pseudocount: 1
 
 #valid
 valid_dataset_human:
-  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.ExpressionDataset
   forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.forward.csv"
   reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.reverse.csv"
   targets_path: "${HOME_PATH}/data/expr_dataset/splits/valid_file_mappings.csv"
@@ -126,12 +135,12 @@ valid_dataset_human:
   tpm: csv
   num_before: 512
   transform_targets_tpm:
-    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.logtransform
     pseudocount: 1
 
 #test: evaluated every time valid is evaluated
 test_dataset_human:
-  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.ExpressionDataset
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.ExpressionDataset
   forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.forward.csv"
   reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/intervals/human.reverse.csv"
   targets_path: "${HOME_PATH}/data/expr_dataset/splits/test_file_mappings.csv"
@@ -139,5 +148,5 @@ test_dataset_human:
   tpm: csv
   num_before: 512
   transform_targets_tpm:
-    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf.logtransform
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_tf_qwen.logtransform
     pseudocount: 1
