@@ -7,13 +7,13 @@ export CUDA_HOME="$HOME/.local/cuda/"
 export PATH="$HOME/.local/cuda/bin:$PATH"
 export LD_LIBRARY_PATH="$HOME/.local/cuda/lib64/:$LD_LIBRARY_PATH"
 
- export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 # export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
 #  --multi_gpu \
 
 TBS=80
-BS=1
+BS=2
 NP=4
 GAS=$(( TBS / (BS * NP) ))  
 
