@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import TokenClassifierOutput
 # from src.gena_lm.modeling_bert import BertPreTrainedModel, BertModel
-from typing import Optional
+from typing import Dict, Optional
 from dataclasses import dataclass
 from transformers import AutoModel, BertConfig, ModernBertModel
 from transformers.utils import cached_file
@@ -17,6 +17,7 @@ class ExpressionModelOutput(TokenClassifierOutput):
     other_loss: Optional[torch.FloatTensor] = None
     deviation_loss: Optional[torch.FloatTensor] = None
     multinomial_loss: Optional[torch.FloatTensor] = None
+    vcc_loss_components: Optional[Dict[str, torch.FloatTensor]] = None
    
 class ExpActivation(nn.Module):
     def forward(self, x):

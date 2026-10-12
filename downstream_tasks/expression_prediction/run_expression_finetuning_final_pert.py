@@ -37,6 +37,10 @@ from lm_experiments_tools import get_optimizer
 from downstream_tasks.expression_prediction.expression_dataset_final import worker_init_fn
 from downstream_tasks.expression_prediction.datasets.src.score_ct_specificity import score_predictions, mean_and_residuals_correlation
 from downstream_tasks.expression_prediction.datasets.src.correlation_selected_cells import calculate_target_genes_metrics
+from downstream_tasks.expression_prediction.vcc_batch_sampler import (
+    VCCContextBatchSampler,
+    vcc_children,
+)
 
 def set_global_seed(seed: int):
     if seed is None:
@@ -185,10 +189,11 @@ def merge_shared_params_and_check_n_keys(
         if v is None or int(v) <= 0:
             raise ValueError(f"n_keys must be set explicitly (> 0) for every {split} dataset, got {v}")
         values.add(int(v))
-    if len(values) > 1:
+    is_vcc = all("vcc_array_path" in cfg for cfg in out)
+    if len(values) > 1 and not is_vcc:
         raise ValueError(f"All {split} datasets must share one n_keys, got {sorted(values)}")
 
-    n_keys = values.pop() if values else None
+    n_keys = next(iter(values)) if len(values) == 1 else None
     alogger.info(f"[n_keys] {split}: {n_keys}")
     return out, n_keys
 
@@ -214,7 +219,24 @@ def build_loader(
     collate_fn,
     worker_init_fn,
     pin_memory: bool = True,
-) -> Tuple[DataLoader, DistributedSampler]:
+) -> Tuple[DataLoader, object]:
+    if vcc_children(dataset) is not None:
+        # Identical deterministic G batches are intentional on all ranks.
+        # The adapter shards P and differentiably gathers the full rectangle.
+        sampler = VCCContextBatchSampler(
+            dataset, batch_size=batch_size, shuffle=shuffle, seed=seed,
+            drop_last=drop_last,
+        )
+        loader = DataLoader(
+            dataset,
+            batch_sampler=sampler,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            collate_fn=collate_fn,
+            worker_init_fn=worker_init_fn,
+        )
+        return loader, sampler
+
     sampler = DistributedSampler(
         dataset,
         rank=accelerator.process_index,
@@ -417,6 +439,24 @@ def main():
         batch_dict['tf_ids'] = torch.stack(tf_ids_batch, dim=0)                      # (B, n_keys, T)
         batch_dict['tf_attention_mask'] = torch.stack(tf_mask_batch, dim=0)          # (B, n_keys, T)
 
+        if all('vcc_context_id' in sample for sample in batch):
+            contexts = [sample['vcc_context_id'] for sample in batch]
+            if len(set(contexts)) != 1:
+                raise ValueError(f"VCC batch mixes contexts: {contexts}")
+            target_lists = [sample['vcc_target_genes'] for sample in batch]
+            if any(targets != target_lists[0] for targets in target_lists[1:]):
+                raise ValueError("VCC perturbation order differs inside a batch")
+            response_genes = [sample['vcc_gene_symbol'] for sample in batch]
+            gene_pos = {gene: i for i, gene in enumerate(response_genes)}
+            rows = torch.tensor(
+                [gene_pos.get(target, -1) for target in target_lists[0]],
+                dtype=torch.long,
+            )
+            for key in ('control_value', 'lfc_true', 'sig_mask'):
+                batch_dict[key] = torch.stack([sample[key] for sample in batch], dim=0)
+            batch_dict['target_gene_row'] = rows.unsqueeze(0).expand(len(batch), -1).clone()
+            batch_dict['vcc_context_id'] = contexts[0]
+
         return batch_dict
 
 
@@ -578,6 +618,9 @@ def main():
             'tf_ids': batch['tf_ids'],
             'tf_attention_mask': batch['tf_attention_mask'],
         }
+        for key in ('control_value', 'target_gene_row', 'lfc_true', 'sig_mask'):
+            if key in batch:
+                result[key] = batch[key]
         return result
     
     # Metrics
@@ -602,6 +645,10 @@ def main():
         for k in ["cls_loss", "other_loss", "multinomial_loss", "deviation_loss"]:
             if k in output and output[k] is not None:
                 data[k] = output[k].detach().cpu()
+        components = output.get("vcc_loss_components")
+        if components is not None:
+            for name, value in components.items():
+                data[f"vcc_{name}_loss"] = value.detach().cpu()
 
         # `gene_id` and `selected_keys` are already compacted in the dataset to contain
         # only entries with valid TPM targets. In contrast, `mask` lives in the full
@@ -634,6 +681,9 @@ def main():
             for k in ["cls_loss", "other_loss", "multinomial_loss", "deviation_loss"]:
                 if k in data and data[k] is not None:
                     metrics[k] = torch.mean(data[k]).item()
+            for k, value in data.items():
+                if str(k).startswith("vcc_") and str(k).endswith("_loss"):
+                    metrics[k] = torch.mean(value).item()
             tpm_true = data['tpm_true']
             tpm_preds = data['tpm_preds']
             gene_id = data['gene_id']
