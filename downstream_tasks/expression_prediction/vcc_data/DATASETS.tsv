@@ -1,0 +1,8 @@
+context_id	source	role	challenge_targets	status
+orion_hct116	Orion_HCT116	train	300	active
+orion_hek293t	Orion_HEK293T	train	300	active
+k562_gwps	K562_gwps_raw_singlecell	train	272	active
+rpe1	RPE1_raw_singlecell	train_candidate	0	excluded_no_challenge_targets
+hepg2	HepG2_raw_singlecell	train_candidate	0	excluded_no_challenge_targets
+jurkat	Jurkat_raw_singlecell	train_candidate	0	excluded_no_challenge_targets
+h1_validation	H1_Flex	validation	25	active_validation_only

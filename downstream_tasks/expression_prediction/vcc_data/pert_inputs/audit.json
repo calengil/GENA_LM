@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "normalization": "existing qref; no renormalization",
+  "contexts": {
+    "orion_hct116": {
+      "targets": 300,
+      "genes": 20343,
+      "unresolved_target_symbols": []
+    },
+    "orion_hek293t": {
+      "targets": 300,
+      "genes": 20343,
+      "unresolved_target_symbols": []
+    },
+    "k562_gwps": {
+      "targets": 272,
+      "genes": 7941,
+      "unresolved_target_symbols": [
+        "BCL6",
+        "CHKB",
+        "DHX35",
+        "EEF1A2",
+        "FOXO4",
+        "GLI3",
+        "GTF2IRD1",
+        "IFI27L2",
+        "MSANTD4",
+        "MTHFSD",
+        "MTM1",
+        "MYPOP",
+        "PAN2",
+        "PCGF1",
+        "PDE6D",
+        "PINK1",
+        "PLCG1",
+        "PRNP",
+        "SH2D3A",
+        "TEX2",
+        "TMCO6",
+        "TRIM35",
+        "ZBTB34",
+        "ZFP62",
+        "ZKSCAN2",
+        "ZKSCAN3",
+        "ZNF16",
+        "ZNF174",
+        "ZNF219",
+        "ZNF25",
+        "ZNF251",
+        "ZNF280C",
+        "ZNF324",
+        "ZNF462",
+        "ZNF530",
+        "ZNF543",
+        "ZNF627",
+        "ZNF628",
+        "ZNF641",
+        "ZNF783",
+        "ZNF784",
+        "ZNF786",
+        "ZNF821"
+      ]
+    }
+  },
+  "panel_genes": 20531,
+  "tf_bins": 50,
+  "bin_space": "log1p(existing qref control)"
+}

@@ -1,0 +1,65 @@
+{
+  "format": "vcc_context_arrays_v1",
+  "contexts": {
+    "orion_hct116": {
+      "shape": [
+        300,
+        20343
+      ],
+      "targets": 300,
+      "genes": 20343,
+      "target_rows_missing": 0,
+      "significant_entries": 28669,
+      "lfc_convention": "log2((qref_expression + 1e-9)/(qref_control + 1e-9))",
+      "qref_representation": "post-qref transcript-span TPM; not physical TPM",
+      "mask_source": "/Users/popova/VCC_2026/data/vcc_context_prep/masks/orion_hct116_de_masks.npz",
+      "output": "/Users/popova/VCC_2026/data/vcc_context_arrays/orion_hct116.npz"
+    },
+    "orion_hek293t": {
+      "shape": [
+        300,
+        20343
+      ],
+      "targets": 300,
+      "genes": 20343,
+      "target_rows_missing": 0,
+      "significant_entries": 30685,
+      "lfc_convention": "log2((qref_expression + 1e-9)/(qref_control + 1e-9))",
+      "qref_representation": "post-qref transcript-span TPM; not physical TPM",
+      "mask_source": "/Users/popova/VCC_2026/data/vcc_context_prep/masks/orion_hek293t_de_masks.npz",
+      "output": "/Users/popova/VCC_2026/data/vcc_context_arrays/orion_hek293t.npz"
+    },
+    "k562_gwps": {
+      "shape": [
+        272,
+        7941
+      ],
+      "targets": 272,
+      "genes": 7941,
+      "target_rows_missing": 43,
+      "significant_entries": 4125,
+      "lfc_convention": "log2((qref_expression + 1e-9)/(qref_control + 1e-9))",
+      "qref_representation": "post-qref transcript-span TPM; not physical TPM",
+      "mask_source": "/Users/popova/VCC_2026/data/vcc_context_prep/masks/k562_gwps_de_masks.npz",
+      "output": "/Users/popova/VCC_2026/data/vcc_context_arrays/k562_gwps.npz"
+    }
+  },
+  "validation_contexts": {
+    "h1_flex": {
+      "split": "validation_only",
+      "shape": [
+        25,
+        17552
+      ],
+      "targets": 25,
+      "genes": 17552,
+      "target_rows_missing": 0,
+      "significant_entries": 80025,
+      "lfc_convention": "log2((qref_expression + 1e-9)/(qref_control + 1e-9))",
+      "qref_representation": "post-qref transcript-span TPM; not physical TPM",
+      "mask_source": "/Users/popova/VCC_2026/data/vcc_context_prep/h1_validation/h1_flex_de_masks.npz",
+      "output": "/Users/popova/VCC_2026/data/vcc_context_arrays/h1_validation.npz",
+      "leakage_policy": "H1 must not be included in training datasets"
+    }
+  }
+}

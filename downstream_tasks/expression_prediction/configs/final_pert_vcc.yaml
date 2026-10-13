@@ -1,0 +1,193 @@
+TASK_NAME: expression/final_pert-vcc-composite-v1
+
+HOME_PATH: ${oc.env:GENALM_HOME}
+
+MODEL_PATH_ROOT: ${HOME_PATH}/runs/${TASK_NAME}
+
+
+args_params:
+
+  _target_: builtins.dict
+  init_checkpoint: "${HOME_PATH}/models/all_datasets_2/pytorch_model.bin"
+  resume:
+
+  model_cfg: "./data/configs/L12-H768-A12-V32k-preln.json"
+
+  model_cls: "downstream_tasks.expression_prediction.expression_model_final_pert_vcc:VCCExpressionCounts"
+
+  model_path: ${MODEL_PATH_ROOT}
+
+  clip_grad_norm: 1
+
+  input_seq_len: 1024
+
+  optimizer: "AdamW"
+
+  weight_decay: 1e-4
+
+  seed: 45
+
+  num_warmup_steps: 1000
+
+  log_interval: 50
+
+  valid_interval: 50
+
+  save_best: True
+
+  save_interval: 2500
+
+  optimize_metric: "loss"
+
+  optimize_mode: "min"
+
+  data_n_workers: 7
+
+  lr: 1e-4
+
+  lr_scheduler: "constant_with_warmup"
+
+  reset_lr: True
+
+  reset_optimizer: True
+
+  reset_iteration: True
+
+  early_stopping_patience: 500000
+
+  iters: 350000
+
+  gen_tokenizer: "AIRI-Institute/gena-lm-bert-base-t2t"
+
+  # tokenizer of the tf panel encoder (lies in the same folder as the tf model)
+  tf_tokenizer: "${HOME_PATH}/models/moderngena-tf-bins50"
+
+selected_targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/datasets/data/marker_genes.txt"
+
+model_kwargs:
+  _target_: builtins.dict
+  hf: True
+  hf_model_name: "AIRI-Institute/moderngena-large" # "${HOME_PATH}/models/all_datasets_2"
+  hf_model_name_decoder: "${HOME_PATH}/models/decoder" #dp0.1"
+  tf_model_path: "${HOME_PATH}/models/moderngena-tf-bins50"
+  micro_perturbations: 4
+  # DNA encoder freezing:
+  #   null  - the whole encoder is trainable
+  #   0     - every layer frozen
+  #   k     - only the last k layers (+ final norm) are trainable
+  bert_trainable_layers: 2
+  # train the token embeddings of the DNA encoder (ignored when bert_trainable_layers is null)
+  bert_train_embeddings: false
+
+  loss_fct:
+    _target_: torch.nn.MSELoss
+    reduction: 'none'
+
+  vcc_loss:
+    _target_: downstream_tasks.expression_prediction.vcc_composite_loss.VCCCompositeLoss
+    use_huber: true
+    use_pds: true
+    use_nmae: true
+    use_fid: true
+    use_reach: true
+    use_jaccard: true
+    huber_delta: 1.0
+    pds_temperature: 0.1
+    weight_huber: 1.0
+    weight_pds: 0.1
+    weight_nmae: 0.02
+    weight_fid: 0.1
+    weight_reach: 0.0333
+    weight_jaccard: 0.05
+    theta: null
+    tau_signif: 0.05
+    tau_sign: 0.25
+    normalize: none
+    fid_variant: soft_yield_v2
+    reach_variant: topk_prefix_v2
+    w_pred_variant: A
+    theta_rule: sig_p30
+    reach_ranking: soft
+
+  activation:
+    _target_: torch.nn.Identity
+
+  config:
+    _target_: builtins.dict
+
+  weight: 8
+
+# shared dataset parameters
+shared_dataset_params:
+  gen_tokenizer: ${args_params.gen_tokenizer}
+  gen_max_seq_len: ${args_params.input_seq_len}
+  tf_tokenizer: ${args_params.tf_tokenizer}
+  # gene order and bin edges of the panel model, written by make_panel_files.py
+  panel_genes_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/pert_inputs/panel_genes.txt"
+  bin_edges_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/pert_inputs/panel_bin_edges.npy"
+  loglevel:
+    "_target_": "logging.getLevelName"
+    "level": "DEBUG"
+  seed: "${args_params.seed}"
+
+# panel: the non-targeting profile of the dataset, knocked-down gene in [BIN_0]; targets: the perturbed profile
+train_dataset_orion_hct116:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.VCCQrefExpressionDataset
+  context_id: orion_hct116
+  vcc_array_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/context_arrays/orion_hct116.npz"
+  n_keys: 300
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/orion_hct116.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/orion_hct116.reverse.csv"
+  targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/DATASETS.tsv"
+  genome: "${HOME_PATH}/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.logtransform
+    pseudocount: 1
+
+train_dataset_orion_hek293t:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.VCCQrefExpressionDataset
+  context_id: orion_hek293t
+  vcc_array_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/context_arrays/orion_hek293t.npz"
+  n_keys: 300
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/orion_hek293t.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/orion_hek293t.reverse.csv"
+  targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/DATASETS.tsv"
+  genome: "${HOME_PATH}/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.logtransform
+    pseudocount: 1
+
+train_dataset_k562_gwps:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.VCCQrefExpressionDataset
+  context_id: k562_gwps
+  vcc_array_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/context_arrays/k562_gwps.npz"
+  n_keys: 272
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/k562_gwps.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/k562_gwps.reverse.csv"
+  targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/DATASETS.tsv"
+  genome: "${HOME_PATH}/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.logtransform
+    pseudocount: 1
+
+# H1 is validation-only and is never mixed into the training sampler.
+valid_dataset_h1:
+  _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.VCCQrefExpressionDataset
+  context_id: h1_validation
+  vcc_array_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/context_arrays/h1_validation.npz"
+  n_keys: 25
+  forward_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/h1_validation.forward.csv"
+  reverse_intervals_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/intervals/h1_validation.reverse.csv"
+  targets_path: "${HOME_PATH}/GENA_LM/downstream_tasks/expression_prediction/vcc_data/DATASETS.tsv"
+  genome: "${HOME_PATH}/genomes/GRCh38.primary_assembly.genome.fa"
+  tpm: csv
+  num_before: 512
+  transform_targets_tpm:
+    _target_: downstream_tasks.expression_prediction.expression_dataset_final_pert_vcc.logtransform
+    pseudocount: 1

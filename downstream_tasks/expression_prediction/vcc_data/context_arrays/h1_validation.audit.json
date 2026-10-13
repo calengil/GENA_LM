@@ -1,0 +1,24 @@
+{
+  "format": "vcc_context_arrays_v1",
+  "context": "h1_flex",
+  "split": "validation_only",
+  "output": "/Users/popova/VCC_2026/data/vcc_context_arrays/h1_validation.npz",
+  "sha256": "09da32f2cead7984b838cbb1370d70ed5d12f0607c162a75ae945aae7dbb9056",
+  "shape": [
+    25,
+    17552
+  ],
+  "targets": 25,
+  "genes": 17552,
+  "target_rows_missing": 0,
+  "significant_entries": 80025,
+  "lfc_convention": "log2((qref_expression + 1e-9)/(qref_control + 1e-9))",
+  "qref_representation": "post-qref transcript-span TPM; not physical TPM",
+  "mask_source": "/Users/popova/VCC_2026/data/vcc_context_prep/h1_validation/h1_flex_de_masks.npz",
+  "source_splits": {
+    "test": 8,
+    "train": 13,
+    "validation": 4
+  },
+  "leakage_policy": "H1 is validation-only and must not be included in train datasets"
+}
