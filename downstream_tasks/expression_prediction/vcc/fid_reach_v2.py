@@ -102,8 +102,9 @@ def calibrate_theta(lfc_true: torch.Tensor, sig: torch.Tensor,
     if not torch.is_nonzero(sig.sum()):
         return None
     sig_lfc = lfc_true[sig > 0.5].abs()
+    sig_lfc = sig_lfc[torch.isfinite(sig_lfc) & (sig_lfc > 0)]
     if sig_lfc.numel() == 0:
-        return None
+        return THETA_FALLBACK
     if rule == "sig_p30":
         return float(torch.quantile(sig_lfc, sig_percentile))
     if rule == "sig_min":

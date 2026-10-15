@@ -101,9 +101,11 @@ def calibrate_theta_from_sig(
     if not torch.is_nonzero(sig.sum()):
         return None
     sig_lfc = lfc[sig > 0.5].abs()
+    sig_lfc = sig_lfc[torch.isfinite(sig_lfc) & (sig_lfc > 0)]
     if sig_lfc.numel() < min_sig_genes:
-        return torch.tensor(theta_fallback, device=lfc.device)
-    return torch.quantile(sig_lfc, sig_percentile)
+        return torch.tensor(theta_fallback, device=lfc.device, dtype=lfc.dtype)
+    theta = torch.quantile(sig_lfc, sig_percentile)
+    return theta.clamp_min(torch.finfo(lfc.dtype).eps)
 
 
 def stage2_members_per_pert(
